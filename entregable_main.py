@@ -1,10 +1,13 @@
-# Versión 6. Arreglo de los errores anteriores añadiendo unos setters y métodos property para manejador y estadisticos.
+# Versión 7. Código añadiendo control de errores con try, except, raise.
+# Tag 2: importante adicion de control de errores.
 
 from abc import ABC, abstractmethod
 import time
 from generar_datos import generador_datos
 from functools import reduce, partial
 import numpy as np
+
+
 
 # Interfaces de Subscriptor y Publicador para el patrón Observer.
 # Heredan de abstract methods para que no se puedan llamar directamente.
@@ -74,6 +77,8 @@ class SensorTemperatura(Publicador):
         if subscriptor in self._lista_subscriptores:
             self._lista_subscriptores.remove(subscriptor)
             print(f"{subscriptor} desubscrito del sensor de temperatura.")
+        else:
+            raise ValueError(f"Error: {subscriptor} no estaba suscrito.")
 
     def notificar_evento(self, estado):
         print("Notificando a los subscriptores...")
@@ -204,15 +209,19 @@ class Sistema(Subscriptor):
 
 class SuperaUmbral(Manejador):
     def manejar(self, temperaturas_60, temperaturas_30):
-        umbral = 15
-        resultado = temperaturas_60[-1] > umbral 
-        if resultado:
-            print(f"La temperatura {temperaturas_60[-1]}º excede del umbral de {umbral}º")
-        else:
-            print(f"La temperatura {temperaturas_60[-1]}º no excede del umbral de {umbral}º.")
+        try:
+            umbral = 15
+            resultado = temperaturas_60[-1] > umbral 
+            if resultado:
+                print(f"La temperatura {temperaturas_60[-1]}º excede del umbral de {umbral}º")
+            else:
+                print(f"La temperatura {temperaturas_60[-1]}º no excede del umbral de {umbral}º.")
 
-        # Pasamos las listas de temperaturas al siguiente manejador en la cadena para que continúe.
-        return super().manejar(temperaturas_60, temperaturas_30)
+            # Pasamos las listas de temperaturas al siguiente manejador en la cadena para que continúe.
+            return super().manejar(temperaturas_60, temperaturas_30)
+        
+        except IndexError:
+            raise IndexError("Error: no hay suficientes datos para procesar.")
 
 
 # CambioDrastico como Manejador.
@@ -223,17 +232,22 @@ class CambioDrastico(Manejador):
         return diferencia > umbral
     
     def manejar(self, temperaturas_60, temperaturas_30):
-        resultado = self.cambio_drastico(temperaturas_30, 15)
-        if resultado:
-            print(f"¡Cambio drástico! \nEn los últimos 30 segundos la temperatura ha aumentado en más de 15º")
-        else:
-            print(f"No ha habido cambios drásticos registrados en los últimos 30 segundos.")
+        try:
+            resultado = self.cambio_drastico(temperaturas_30, 15)
+            if resultado:
+                print(f"¡Cambio drástico! \nEn los últimos 30 segundos la temperatura ha aumentado en más de 15º")
+            else:
+                print(f"No ha habido cambios drásticos registrados en los últimos 30 segundos.")
 
-        # Pasamos las listas de temperaturas al siguiente manejador en la cadena para que continúe.            
-        return super().manejar(temperaturas_60, temperaturas_30)
+            # Pasamos las listas de temperaturas al siguiente manejador en la cadena para que continúe.            
+            return super().manejar(temperaturas_60, temperaturas_30)
+
+        except ValueError:
+            raise ValueError("Error: no se pueden calcular los cambios drásticos.")
 
     
-# Antes de definir el Manejador de estadísticos, debemos implementar cada
+# Antes de definir el Manejador de estadísticos, debemos implementar cada una de sus estrategias utilizando programación funcional.
+
 # Interfaz de Estrategia para el patrón de Strategy.
 
 class Estrategia(ABC):
@@ -254,8 +268,12 @@ class Media(Estrategia):
     """
 
     def hacer_calculo(self, valores):
-        suma = reduce(lambda x, y : x + y, valores)
-        return round(suma / len(valores), 2)
+        try:
+            suma = reduce(lambda x, y : x + y, valores)
+            return round(suma / len(valores), 2)
+        
+        except ZeroDivisionError:
+            raise ValueError("Error: no se pueden calcular la media de una lista vacía.")
 
 
 # Estrategia para calcular los Cuantiles.
@@ -266,9 +284,15 @@ class Cuantiles(Estrategia):
     """
     
     def hacer_calculo(self, valores):
-        calcular_percentiles = partial(np.percentile, q=[25, 50, 75])
-        percentiles = calcular_percentiles(valores)
-        return dict(zip(["25%", "50%", "75%"], map(lambda x: round(x, 2), percentiles)))
+        try:
+            if not valores:
+                raise ValueError("Error: no se pueden calcular los cuantiles de una lista vacía.")
+            calcular_percentiles = partial(np.percentile, q=[25, 50, 75])
+            percentiles = calcular_percentiles(valores)
+            return dict(zip(["25%", "50%", "75%"], map(lambda x: round(x, 2), percentiles)))
+        
+        except ValueError as e:
+            raise ValueError("Error: no se pueden calcular los cuantiles.")
 
 
 # Estrategia para calcular la DesviacionTipica.
@@ -285,9 +309,16 @@ class DesviacionTipica(Estrategia):
         return f
     
     def hacer_calculo(self, valores: list):
-        elementos_cuadrado = list(map(self.calculo(valores), valores))
-        result = Media().hacer_calculo(elementos_cuadrado) ** (1 / 2)
-        return result
+        if not valores:
+            raise ValueError("Error: no se puede calcular la desviación típica de una lista vacía.")
+        
+        try:
+            elementos_cuadrado = list(map(self.calculo(valores), valores))
+            result = Media().hacer_calculo(elementos_cuadrado) ** (1 / 2)
+            return result
+        
+        except (TypeError, ZeroDivisionError):
+            raise ValueError("Error: no se pueden calcular la desviación típica de una lista con elementos no numéricos.")
 
 
 # Estrategia para calcular los MaximoMinimo.
@@ -298,9 +329,17 @@ class MaximoMinimo(Estrategia):
     """
     
     def hacer_calculo(self, valores):
-        maximo = max(valores)
-        minimo = min(valores)
-        return {"max": maximo, "min": minimo}
+        if not valores:
+            raise ValueError("Error: no se pueden calcular el máximo y el mínimo de una lista vacía.")
+        
+        try:
+            maximo = max(valores)
+            minimo = min(valores)
+            return {"max": maximo, "min": minimo}
+        
+        except ValueError:
+            raise ValueError("Error: no se pueden calcular el máximo y el mínimo de una lista con elementos no numéricos.")
+
 
 
 # Manejador de Estadisticos.
@@ -332,6 +371,9 @@ class Estadisticos(Manejador):
         return super().manejar(temperaturas_60, temperaturas_30)
 
 
+
+
+
 # Código de prueba.
 
 if __name__=="__main__":
@@ -354,4 +396,4 @@ if __name__=="__main__":
     sistema.manejador = supera_umbral
 
     # Iniciar el sensor de datos (hemos puesto 60 segundos para probar).
-    sensor.iniciar_sensor(60)
+    (sensor.iniciar_sensor(60))
