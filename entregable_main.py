@@ -1,14 +1,28 @@
-# Versión 1. Esqueleto muy esquelético para empezar.
+# Versión 2. Rellenamos parcialmente el esqueleto con el esquema de las clases que van a actuar como interfaces.
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 
 class Subscriptor(ABC):
-    pass
+
+    @abstractmethod
+    def actualizar_estado(self, estado):
+        pass
     
 
 class Publicador(ABC):
-    pass
+
+    @abstractmethod
+    def añadir_subscriptor(self, subscriptor: Subscriptor): # Anotaciones que hacen que la variable tenga que ser un objeto e específico, las usaremos para restringir y controlar los errores.
+        pass
+
+    @abstractmethod
+    def eliminar_subscriptor(self, subscriptor: Subscriptor):
+        pass
+
+    @abstractmethod
+    def notificar_evento(self):
+        pass
 
 
 # SensorTemperatrura que va a ser un Publicador.
@@ -18,7 +32,13 @@ class SensorTemperatura(Publicador):
 
 
 class Manejador(ABC):
-    pass
+
+    def siguiente_manejador(self, manejador):
+        pass
+
+    @abstractmethod
+    def manejar(self, temperaturas_60, temperaturas_30):
+        pass
 
 
 # Sistema como un Subscriptor.
@@ -45,7 +65,10 @@ class CambioDrastico(Manejador):
 # Interfaz de Estrategia para el patrón de Strategy.
 
 class Estrategia(ABC):
-    pass
+
+    @abstractmethod
+    def hacer_calculo(self, valores):
+        pass
 
 
 # Estrategia para calcular la Media.
@@ -74,4 +97,9 @@ class MaximoMinimo(Estrategia):
 # Manejador de Estadisticos.
 
 class Estadisticos(Manejador):
-    pass
+
+    def __init__(self, estrategia: Estrategia):
+        pass
+
+    def manejar(self, temperaturas_60, temperaturas_30):
+        pass
