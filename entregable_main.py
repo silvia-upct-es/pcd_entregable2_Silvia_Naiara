@@ -1,4 +1,4 @@
-# Versión 5. Código más inicial para meter el sensor con el generador de datos, un codigo de prueba que queremos que se cumpla al final e intentar inicializarlo.
+# Versión 6. Arreglo de los errores anteriores añadiendo unos setters y métodos property para manejador y estadisticos.
 
 from abc import ABC, abstractmethod
 import time
@@ -163,6 +163,14 @@ class Sistema(Subscriptor):
             cls._instancia_sistema = cls()
         return cls._instancia_sistema
 
+    @property
+    def manejador(self):
+        return self._manejador
+
+    @manejador.setter # Pasar una cadena de manejadores al gestor antes de inicializar el sensor.
+    def manejador(self, manejador: Manejador):
+        self._manejador = manejador
+
     def actualizar_estado(self, estado):
         # Añadimos las temperaturas (el primer elemento de la tupla de estado) a las listas correspondientes.
         _temperatura = estado[1]
@@ -300,6 +308,14 @@ class MaximoMinimo(Estrategia):
 class Estadisticos(Manejador):
     def __init__(self, estrategia: Estrategia):
         self._estrategia = estrategia
+
+    @property
+    def estrategia(self):
+        return self._estrategia
+
+    @estrategia.setter
+    def estrategia(self, estrategia: Estrategia):
+        self._estrategia = estrategia 
 
     def manejar(self, temperaturas_60, temperaturas_30):
         resultado = self._estrategia.hacer_calculo(temperaturas_60)
