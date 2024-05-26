@@ -1,4 +1,4 @@
-Entregable por Silvia Alacid Brao (54802825N) y Naiara Montoro López (24408680E).
+Entregable por Silvia Alacid Brao y Naiara Montoro López.
 
 Correos:
 silvia.alacid@edu.upct.es
