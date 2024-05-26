@@ -1,4 +1,4 @@
-# Versión 2. Rellenamos parcialmente el esqueleto con el esquema de las clases que van a actuar como interfaces.
+# Versión 3. Añadimos los métodos heredados y los nuevos métodos que necesitaremos implementar en cada clase.
 
 from abc import ABC, abstractmethod
 
@@ -13,7 +13,7 @@ class Subscriptor(ABC):
 class Publicador(ABC):
 
     @abstractmethod
-    def añadir_subscriptor(self, subscriptor: Subscriptor): # Anotaciones que hacen que la variable tenga que ser un objeto e específico, las usaremos para restringir y controlar los errores.
+    def añadir_subscriptor(self, subscriptor: Subscriptor):
         pass
 
     @abstractmethod
@@ -28,11 +28,26 @@ class Publicador(ABC):
 # SensorTemperatrura que va a ser un Publicador.
 
 class SensorTemperatura(Publicador):
-    pass
+
+    # Métodos heredados de Publicador relacionados con los subscriptores.
+    def añadir_subscriptor(self, subscriptor: Subscriptor):
+        pass
+
+    def eliminar_subscriptor(self, subscriptor: Subscriptor):
+        pass
+
+    def notificar_evento(self, estado):
+        pass
+    
+    # Métodos propios de SensorTemperatura.
+    def modificar_estado(self, estado):
+        pass
+
+    def iniciar_sensor(self, tiempo):
+        pass
 
 
 class Manejador(ABC):
-
     def siguiente_manejador(self, manejador):
         pass
 
@@ -41,24 +56,41 @@ class Manejador(ABC):
         pass
 
 
-# Sistema como un Subscriptor.
+# Sistema como un Subscriptor y además un patrón de Singleton en él mismo porque sólo puede haber una instancia.
 
 class Sistema(Subscriptor):
-    pass
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        pass
+    
+    @classmethod 
+    def obtener_instancia(cls):
+        pass
+
+    def actualizar_estado(self, estado):
+        pass
 
 
 # Tenemos 3 manejadores.
+# Todos los manejadores concretos manejan una solicitud o la pasan al siguiente manejador en la cadena.
 
 # SuperaUmbral como Manejador.
 
 class SuperaUmbral(Manejador):
-    pass
+    def manejar(self, temperaturas_60, temperaturas_30):
+        pass
 
 
 # CambioDrastico como Manejador.
 
 class CambioDrastico(Manejador):
-    pass
+    def cambio_drastico(self, valores, umbral):
+        pass
+    
+    def manejar(self, temperaturas_60, temperaturas_30):
+        pass
 
     
 
@@ -74,30 +106,40 @@ class Estrategia(ABC):
 # Estrategia para calcular la Media.
 
 class Media(Estrategia):
-    pass
+
+    def hacer_calculo(self, valores):
+        pass
 
 # Estrategia para calcular los Cuantiles.
 
 class Cuantiles(Estrategia):
-    pass
+    
+    def hacer_calculo(self, valores):
+        pass
 
 # Estrategia para calcular la DesviacionTipica.
 
 class DesviacionTipica(Estrategia):
-    pass
+    
+    def calculo(self, valores):
+        pass
+    
+    def hacer_calculo(self, valores: list):
+        pass
 
 
 # Estrategia para calcular los MaximoMinimo.
 
 class MaximoMinimo(Estrategia):
-    pass
+    
+    def hacer_calculo(self, valores):
+        pass
 
 
 
 # Manejador de Estadisticos.
 
 class Estadisticos(Manejador):
-
     def __init__(self, estrategia: Estrategia):
         pass
 
