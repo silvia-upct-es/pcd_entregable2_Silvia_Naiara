@@ -1,8 +1,10 @@
-# Versión 4. Especificamos que queremos que haga cada método de las clases y les atribuimos roles descriptivos junto con el método innit de las que lo necesitan.
-# Tag 1: importnate especificaciones del esquema más concretas, la implementación coge la idea que pretendemos seguir y sólo queda meter el código dentro.
+# Versión 5. Código más inicial para meter el sensor con el generador de datos, un codigo de prueba que queremos que se cumpla al final e intentar inicializarlo.
 
 from abc import ABC, abstractmethod
-from generar_datos import generador_datos # Tenemos en cuenta el formato de tupla en el que vienen los datos.
+import time
+from generar_datos import generador_datos
+from functools import reduce, partial
+import numpy as np
 
 # Interfaces de Subscriptor y Publicador para el patrón Observer.
 # Heredan de abstract methods para que no se puedan llamar directamente.
@@ -64,15 +66,19 @@ class SensorTemperatura(Publicador):
     _lista_subscriptores: list[Subscriptor] = [] # La lista está formada por instancioas de Subscriptor.
 
     # Métodos heredados de Publicador relacionados con los subscriptores.
-    # Su especificación va dada por los métodos de la clase de la que los heredan.
     def añadir_subscriptor(self, subscriptor: Subscriptor):
-        pass
+        self._lista_subscriptores.append(subscriptor)
+        print(f"{subscriptor} subscrito al sensor de temperatura.")
 
     def eliminar_subscriptor(self, subscriptor: Subscriptor):
-        pass
+        if subscriptor in self._lista_subscriptores:
+            self._lista_subscriptores.remove(subscriptor)
+            print(f"{subscriptor} desubscrito del sensor de temperatura.")
 
     def notificar_evento(self, estado):
-        pass
+        print("Notificando a los subscriptores...")
+        for subscriptor in self._lista_subscriptores:
+            subscriptor.actualizar_estado(estado)
     
     # Métodos propios de SensorTemperatura.
     def modificar_estado(self, estado):
@@ -82,7 +88,9 @@ class SensorTemperatura(Publicador):
         Parámetros:
         - estado: tuple
         """
-        pass
+        print("\n¡La temperatura ha cambiado!")
+        self._estado = estado
+        self.notificar_evento(estado)
 
     def iniciar_sensor(self, tiempo):
         """
@@ -91,7 +99,13 @@ class SensorTemperatura(Publicador):
         Parámetros:
         - tiempo: int
         """
-        pass
+        print("\nTomando datos...")
+        final = time.time() + tiempo # Calcula el tiempo final de la toma de datos.
+        while final > time.time(): # Mientras el tiempo actual sea menor que el tiempo final...
+            dato = generador_datos()
+            self.modificar_estado(dato)
+            time.sleep(5)
+            print("\n") # Esperamos 5 segundos antes de tomar el siguiente dato.
 
 
 #  Interfaz de Manejador para el patrón Chain of Responsibility.
@@ -100,6 +114,7 @@ class Manejador(ABC):
     """
     Interfaz que declara métodos para manejadores que utilizarán el sistema gestor de datos con cada notificación.
     """
+    _siguiente_manejador = None
 
     def siguiente_manejador(self, manejador):
         """
@@ -108,7 +123,8 @@ class Manejador(ABC):
         Parámetros:
         - manejador: Instancia de la clase Manejador.
         """
-        pass
+        self._siguiente_manejador = manejador
+        return manejador
 
     @abstractmethod
     def manejar(self, temperaturas_60, temperaturas_30):
@@ -121,7 +137,9 @@ class Manejador(ABC):
         - temperaturas_60: list
         - temperaturas_30: list
         """
-        pass
+        if self._siguiente_manejador:
+            return self._siguiente_manejador.manejar(temperaturas_60, temperaturas_30)
+        return None
 
 
 # Sistema como un Subscriptor y además un patrón de Singleton en él mismo porque sólo puede haber una instancia.
@@ -130,21 +148,45 @@ class Sistema(Subscriptor):
     _instancia_sistema = None
 
     def __init__(self):
-        self._nombre = "SuperSistema" # Super nombre!!!!
+        self._nombre = "SuperSistema"
         self._temperaturas = []
         self._temperaturas_30 = []
         self._temperaturas_60 = []
         self._manejador = None # Inicializamos la cadena de manejadores como None para atribuirle valores más tarde.
 
     def __str__(self): # Para que cuando se subscriba al sensor aparezca su nombre.
-        pass
+        return self._nombre 
     
     @classmethod # Método de clase del esquema Singleton para generar una única instancia si no existe ya.
     def obtener_instancia(cls):
-        pass
+        if not cls._instancia_sistema:
+            cls._instancia_sistema = cls()
+        return cls._instancia_sistema
 
     def actualizar_estado(self, estado):
-        pass
+        # Añadimos las temperaturas (el primer elemento de la tupla de estado) a las listas correspondientes.
+        _temperatura = estado[1]
+        _fecha = estado[0]
+        self._temperaturas.append(_temperatura)
+        self._temperaturas_60.append(_temperatura)
+        self._temperaturas_30.append(_temperatura)
+
+        # Como cada 5 segundos se recoge un valor, en 30 segundos se deberían recoger 6 valores y en 60 segundos 12 valores.
+        if len(self._temperaturas_60) > 6: # Verifica si se han registrado más de 6 temperaturas (más de 30 segundos de datos).
+            # Actualiza la lista de temperaturas de los últimos 30 segundos con las últimas 6 temperaturas.
+            self._temperaturas_30 = self._temperaturas_60[-6:]
+
+        if len(self._temperaturas_60) > 12: # Verifica si se han registrado más de 12 temperaturas (más de 60 segundos de datos).
+            # Actualiza la lista de temperaturas de los últimos 60 segundos con las últimas 12 temperaturas.
+            self._temperaturas_60 = self._temperaturas_60[-12:]
+        
+        print(f"El sensor marca {_temperatura}º a las {_fecha}.")
+        print(f"Temperaturas hasta ahora: {self._temperaturas}")
+        print(f"Temperaturas en los últimos 30 segundos: {self._temperaturas_30}")
+        print(f"Temperaturas en los últimos 60 segundos: {self._temperaturas_60}")
+
+        # Pasamos las listas de temperaturas al primer manejador de la cadena para que realice la acción correspondiente o pase la responsabilidad al siguiente.
+        self._manejador.manejar(self._temperaturas_60, self._temperaturas_30)
 
 
 # Tenemos 3 manejadores.
@@ -154,20 +196,36 @@ class Sistema(Subscriptor):
 
 class SuperaUmbral(Manejador):
     def manejar(self, temperaturas_60, temperaturas_30):
-        pass
+        umbral = 15
+        resultado = temperaturas_60[-1] > umbral 
+        if resultado:
+            print(f"La temperatura {temperaturas_60[-1]}º excede del umbral de {umbral}º")
+        else:
+            print(f"La temperatura {temperaturas_60[-1]}º no excede del umbral de {umbral}º.")
+
+        # Pasamos las listas de temperaturas al siguiente manejador en la cadena para que continúe.
+        return super().manejar(temperaturas_60, temperaturas_30)
 
 
 # CambioDrastico como Manejador.
 
 class CambioDrastico(Manejador):
     def cambio_drastico(self, valores, umbral):
-        pass
+        diferencia = max(valores) - min(valores)
+        return diferencia > umbral
     
     def manejar(self, temperaturas_60, temperaturas_30):
-        pass
-    
-# Antes de definir el Manejador de estadísticos, debemos implementar cada una de sus estrategias utilizando programación funcional.
+        resultado = self.cambio_drastico(temperaturas_30, 15)
+        if resultado:
+            print(f"¡Cambio drástico! \nEn los últimos 30 segundos la temperatura ha aumentado en más de 15º")
+        else:
+            print(f"No ha habido cambios drásticos registrados en los últimos 30 segundos.")
 
+        # Pasamos las listas de temperaturas al siguiente manejador en la cadena para que continúe.            
+        return super().manejar(temperaturas_60, temperaturas_30)
+
+    
+# Antes de definir el Manejador de estadísticos, debemos implementar cada
 # Interfaz de Estrategia para el patrón de Strategy.
 
 class Estrategia(ABC):
@@ -188,7 +246,8 @@ class Media(Estrategia):
     """
 
     def hacer_calculo(self, valores):
-        pass
+        suma = reduce(lambda x, y : x + y, valores)
+        return round(suma / len(valores), 2)
 
 
 # Estrategia para calcular los Cuantiles.
@@ -199,7 +258,9 @@ class Cuantiles(Estrategia):
     """
     
     def hacer_calculo(self, valores):
-        pass
+        calcular_percentiles = partial(np.percentile, q=[25, 50, 75])
+        percentiles = calcular_percentiles(valores)
+        return dict(zip(["25%", "50%", "75%"], map(lambda x: round(x, 2), percentiles)))
 
 
 # Estrategia para calcular la DesviacionTipica.
@@ -210,10 +271,15 @@ class DesviacionTipica(Estrategia):
     """
     
     def calculo(self, valores): # Programación funcional para hallar la desviación típica.
-        pass
+        valor_medio = Media().hacer_calculo(valores)
+        def f(n):
+            return (n - valor_medio) ** 2
+        return f
     
     def hacer_calculo(self, valores: list):
-        pass
+        elementos_cuadrado = list(map(self.calculo(valores), valores))
+        result = Media().hacer_calculo(elementos_cuadrado) ** (1 / 2)
+        return result
 
 
 # Estrategia para calcular los MaximoMinimo.
@@ -224,8 +290,9 @@ class MaximoMinimo(Estrategia):
     """
     
     def hacer_calculo(self, valores):
-        pass
-
+        maximo = max(valores)
+        minimo = min(valores)
+        return {"max": maximo, "min": minimo}
 
 
 # Manejador de Estadisticos.
@@ -235,4 +302,40 @@ class Estadisticos(Manejador):
         self._estrategia = estrategia
 
     def manejar(self, temperaturas_60, temperaturas_30):
-        pass
+        resultado = self._estrategia.hacer_calculo(temperaturas_60)
+        if isinstance(self._estrategia, Media):
+            print(f"Cálculo de la media: {resultado}º")
+        elif isinstance(self._estrategia, Cuantiles):
+            print(f"Cuantiles: {resultado}")
+        elif isinstance(self._estrategia, DesviacionTipica):
+            print(f"Cálculo de la desviación típica: {resultado}")
+        elif isinstance(self._estrategia, MaximoMinimo):
+            print(f"Máximo: {resultado['max']}º, Mínimo: {resultado['min']}º")
+
+        # Pasamos las listas de temperaturas al siguiente manejador en la cadena para que continúe.
+        return super().manejar(temperaturas_60, temperaturas_30)
+
+
+# Código de prueba.
+
+if __name__=="__main__":
+    sensor = SensorTemperatura()
+    sistema = Sistema.obtener_instancia()
+    sensor.añadir_subscriptor(sistema)
+
+    # Creamos los manejadores.
+    supera_umbral = SuperaUmbral()
+    cambio_drastico = CambioDrastico()
+    estadisticos_media = Estadisticos(Media())
+    estadisticos_cuantiles = Estadisticos(Cuantiles())
+    estadisticos_desviacion = Estadisticos(DesviacionTipica())
+    estadisticos_max_min = Estadisticos(MaximoMinimo())
+
+    # Configuramos la cadena de responsabilidad.
+    supera_umbral.siguiente_manejador(cambio_drastico).siguiente_manejador(estadisticos_media).siguiente_manejador(estadisticos_cuantiles).siguiente_manejador(estadisticos_desviacion).siguiente_manejador(estadisticos_max_min)
+
+    # Establecemos el manejador principal del sistema.
+    sistema.manejador = supera_umbral
+
+    # Iniciar el sensor de datos (hemos puesto 60 segundos para probar).
+    sensor.iniciar_sensor(60)
